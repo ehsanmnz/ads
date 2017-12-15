@@ -1,0 +1,58 @@
+#!/bin/bash
+
+set -eo pipefail
+
+echo "Checking for existing Superset config..."
+if [ ! -f $SUPERSET_HOME/superset_config.py ]; then
+  echo "No Superset config found, creating from environment"
+  touch $SUPERSET_HOME/superset_config.py
+
+  cat > $SUPERSET_HOME/superset_config.py <<EOF
+ROW_LIMIT = ${SUP_ROW_LIMIT}
+WEBSERVER_THREADS = ${SUP_WEBSERVER_THREADS}
+SUPERSET_WEBSERVER_PORT = ${SUP_WEBSERVER_PORT}
+SUPERSET_WEBSERVER_TIMEOUT = ${SUP_WEBSERVER_TIMEOUT}
+SECRET_KEY = '${SUP_SECRET_KEY}'
+SQLALCHEMY_DATABASE_URI = '${SUP_META_DB_URI}'
+CSRF_ENABLED = ${SUP_CSRF_ENABLED}
+EOF
+fi
+
+echo "Checking for docker-entrypoint"
+if [ -f /docker-entrypoint.sh ]; then
+  echo "docker-entrypoint found, running"
+  chmod +x /docker-entrypoint.sh
+  . docker-entrypoint.sh
+fi
+
+if [ ! -f $SUPERSET_HOME/.setup-complete ]; then
+  echo "Running first time setup for Superset"
+
+  echo "Creating admin user ${ADMIN_USERNAME}"
+  cat > $SUPERSET_HOME/admin.config <<EOF
+${ADMIN_USERNAME}
+${ADMIN_FIRST_NAME}
+${ADMIN_LAST_NAME}
+${ADMIN_EMAIL}
+${ADMIN_PWD}
+${ADMIN_PWD}
+
+EOF
+
+  /bin/sh -c '/usr/local/bin/fabmanager create-admin --app superset < $SUPERSET_HOME/admin.config'
+
+  rm $SUPERSET_HOME/admin.config
+
+  echo "Initializing database"
+  superset db upgrade
+
+  echo "Creating default roles and permissions"
+  superset init
+
+  touch $SUPERSET_HOME/.setup-complete
+else
+  superset db upgrade
+fi
+
+echo "Starting up Superset"
+superset runserver -p 8088 -a 0.0.0.0 -t ${SUP_WEBSERVER_TIMEOUT}
