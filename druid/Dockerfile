@@ -73,6 +73,7 @@ RUN /etc/init.d/mysql start \
 
 ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+
 EXPOSE 8081
 EXPOSE 8082
 EXPOSE 8083
