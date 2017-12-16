@@ -1,4 +1,4 @@
-#### sandbox and playground with Divolte, Kafka, Druid and Superset
+#### sandbox and playground
 
 ```git clone https://github.com/ehsanmnz/ads.git```
  
